@@ -1,15 +1,13 @@
-import psycopg2
+import psycopg
 import os
 
-conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+conn = psycopg.connect(os.getenv("DATABASE_URL"))
 cur = conn.cursor()
 
-# Добавить категории
 categories = ["Доставка", "Возврат", "Оплата"]
 for cat in categories:
     cur.execute("INSERT INTO categories (name) VALUES (%s) ON CONFLICT DO NOTHING", (cat,))
 
-# Добавить вопросы
 faq_items = [
     ("Доставка", "Как долго доставка?", "Доставка занимает 3-5 рабочих дней."),
     ("Доставка", "Какая стоимость доставки?", "Доставка бесплатна при заказе от 1000 руб."),
@@ -24,11 +22,10 @@ faq_items = [
 
 for category, question, answer in faq_items:
     cur.execute("SELECT id FROM categories WHERE name = %s", (category,))
-    cat_id = cur.fetchone()[0]
-    cur.execute(
-        "INSERT INTO faq (category_id, question, answer) VALUES (%s, %s, %s)",
-        (cat_id, question, answer)
-    )
+    result = cur.fetchone()
+    if result:
+        cat_id = result[0]
+        cur.execute("INSERT INTO faq (category_id, question, answer) VALUES (%s, %s, %s)", (cat_id, question, answer))
 
 conn.commit()
 cur.close()
