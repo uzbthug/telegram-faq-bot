@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор промптов</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #bb86fc;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0a0a0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        select, textarea {
+            width: 100%;
+            padding: 14px;
+            background-color: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 16px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        select:focus, textarea:focus {
+            outline: none;
+            border-color: #bb86fc;
+            box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.2);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #bb86fc, #9965f4);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(187, 134, 252, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .result-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .result-container.show {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-label {
+            color: #a0a0a0;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .result-box {
+            background-color: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .copy-btn {
+            background: linear-gradient(135deg, #03dac6, #01b8a5);
+            padding: 12px;
+            font-size: 14px;
+        }
+
+        .copy-btn:hover {
+            box-shadow: 0 6px 20px rgba(3, 218, 198, 0.4);
+        }
+
+        .copy-btn.copied {
+            background: linear-gradient(135deg, #4caf50, #43a047);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Генератор промптов</h1>
+        
+        <div class="form-group">
+            <label for="role">Роль</label>
+            <select id="role">
+                <option value="Разработчик">Разработчик</option>
+                <option value="Дизайнер">Дизайнер</option>
+                <option value="Копирайтер">Копирайтер</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="task">Основная задача</label>
+            <textarea id="task" placeholder="Опишите, что нужно сделать..."></textarea>
+        </div>
+
+        <button id="generateBtn">Сгенерировать промпт</button>
+
+        <div class="result-container" id="resultContainer">
+            <div class="result-label">Ваш готовый промпт:</div>
+            <div class="result-box" id="resultText"></div>
+            <button class="copy-btn" id="copyBtn">📋 Скопировать</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const roleSelect = document.getElementById('role');
+            const taskInput = document.getElementById('task');
+            const generateBtn = document.getElementById('generateBtn');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultText = document.getElementById('resultText');
+            const copyBtn = document.getElementById('copyBtn');
+
+            const promptTemplates = {
+                'Разработчик': `Ты опытный разработчик с глубокими знаниями в области программирования. Твоя задача: {task}
+
+Пожалуйста:
+1. Предложи оптимальное решение с объяснением выбора технологий
+2. Предоставь чистый, хорошо документированный код
+3. Учти лучшие практики и возможные крайние случаи
+4. Если нужно, добавь комментарии к сложным участкам кода`,
+
+                'Дизайнер': `Ты креативный дизайнер с отличным чувством стиля и пониманием UX/UI. Твоя задача: {task}
+
+Пожалуйста:
+1. Опиши концепцию дизайна и визуальную стратегию
+2. Предложи цветовую палитру и типографику
+3. Учитывай принципы юзабилити и доступности
+4. Предоставь подробное описание или рекомендации по реализации`,
+
+                'Копирайтер': `Ты профессиональный копирайтер с умением создавать убедительные и engaging тексты. Твоя задача: {task}
+
+Пожалуйста:
+1. Создай текст, который резонирует с целевой аудиторией
+2. Используй подходящий тон и стиль для задачи
+3. Включи призывы к действию там, где это уместно
+4. Оптимизируй текст для читаемости и вовлеченности`
+            };
+
+            generateBtn.addEventListener('click', function() {
+                const role = roleSelect.value;
+                const task = taskInput.value.trim();
+
+                if (!task) {
+                    alert('Пожалуйста, опишите основную задачу!');
+                    taskInput.focus();
+                    return;
+                }
+
+                const template = promptTemplates[role];
+                const generatedPrompt = template.replace('{task}', task);
+
+                resultText.textContent = generatedPrompt;
+                resultContainer.classList.add('show');
+                
+                // Reset copy button state
+                copyBtn.textContent = '📋 Скопировать';
+                copyBtn.classList.remove('copied');
+                
+                // Scroll to result
+                resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+
+            copyBtn.addEventListener('click', function() {
+                const textToCopy = resultText.textContent;
+                
+                navigator.clipboard.writeText(textToCopy).then(function() {
+                    copyBtn.textContent = '✅ Скопировано!';
+                    copyBtn.classList.add('copied');
+                    
+                    setTimeout(function() {
+                        copyBtn.textContent = '📋 Скопировать';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                }).catch(function(err) {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = textToCopy;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    copyBtn.textContent = '✅ Скопировано!';
+                    copyBtn.classList.add('copied');
+                    
+                    setTimeout(function() {
+                        copyBtn.textContent = '📋 Скопировать';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
