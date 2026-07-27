@@ -1,8 +1,8 @@
 import logging
 import psycopg
 import os
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -10,14 +10,19 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("📦 Доставка", callback_data="category_Доставка")],
+        [InlineKeyboardButton("↩️ Возврат", callback_data="category_Возврат")],
+        [InlineKeyboardButton("💳 Оплата", callback_data="category_Оплата")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        "Привет! Выберите категорию:\n"
-        "/delivery - Доставка\n"
-        "/returns - Возврат\n"
-        "/payment - Оплата"
+        "Привет! 👋\nВыберите категорию, чтобы получить ответы на вопросы:",
+        reply_markup=reply_markup
     )
 
-async def get_faq(update: Update, context: ContextTypes.DEFAULT_TYPE, category: str):
+async def get_faq_by_category(category: str):
     conn = psycopg.connect(DATABASE_URL)
     cur = conn.cursor()
     
@@ -30,6 +35,26 @@ async def get_faq(update: Update, context: ContextTypes.DEFAULT_TYPE, category: 
     results = cur.fetchall()
     cur.close()
     conn.close()
+    
+    return results
+
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    category = query.data.replace("category_", "")
+    results = await get_faq_by_category(category)
+    
+    if results:
+        text = f"📚 *{category}*\n\n"
+        for q, a in results:
+            text += f"❓ {q}\n💬 {a}\n\n"
+        await query.edit_message_text(text, parse_mode='Markdown')
+    else:
+        await query.edit_message_text(f"Нет вопросов по категории {category}")
+
+async def get_faq(update: Update, context: ContextTypes.DEFAULT_TYPE, category: str):
+    results = await get_faq_by_category(category)
     
     if results:
         text = f"📚 {category}:\n\n"
@@ -79,8 +104,10 @@ def main():
     app.add_handler(CommandHandler("delivery", delivery))
     app.add_handler(CommandHandler("returns", returns))
     app.add_handler(CommandHandler("payment", payment))
+    app.add_handler(CallbackQueryHandler(button_callback, pattern="^category_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
+    logger.info("Бот запущен...")
     app.run_polling()
 
 if __name__ == "__main__":
